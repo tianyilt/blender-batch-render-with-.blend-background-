@@ -89,20 +89,13 @@ def obj_render(path_to_obj_dir, args):
     """
     global scene, cam
     selected_object_name = None
-    #clear
-    for name, _ in bpy.data.objects.items():
-        if name not in ['Camera', 'Light', 'Camera.001', 'Camera.002', 'Camera.003', 'Plane']:
-            selected_object_name = name
-            print('delete', selected_object_name)
-            bpy.data.objects[str(selected_object_name)].select_set(True)
-            bpy.ops.object.delete()
-    if args.transparent_background:
-        try:
-            print("delete plane")
-            bpy.data.objects['Plane'].select_set(True)
-            bpy.ops.object.delete()
-        except Exception as e:
-            print(e)
+    KEEP = {'Camera', 'Light', 'Camera.001', 'Camera.002', 'Camera.003', 'Plane'}
+    for name in [n for n in list(bpy.data.objects.keys()) if n not in KEEP]:
+        print('delete', name)
+        bpy.data.objects.remove(bpy.data.objects[name], do_unlink=True)
+    if args.transparent_background and 'Plane' in bpy.data.objects:
+        print("delete plane")
+        bpy.data.objects.remove(bpy.data.objects['Plane'], do_unlink=True)
 
     print(bpy.data.objects.items())
 
@@ -116,7 +109,7 @@ def obj_render(path_to_obj_dir, args):
                 print("skip path{}".format(check_path))
                 continue
         path_to_file = os.path.join(path_to_obj_dir, item)
-        bpy.ops.import_scene.obj(filepath=path_to_file)
+        bpy.ops.wm.obj_import(filepath=path_to_file)
         for name, _ in bpy.data.objects.items():
             if name not in ['Camera', 'Light', 'Camera.001', 'Camera.002', 'Camera.003', 'Plane']:
                 selected_object_name = name
@@ -128,9 +121,9 @@ def obj_render(path_to_obj_dir, args):
         # bpy.data.objects[str(selected_object_name)].rotation_euler[0] = 3.14159#only in linux because of strange direction bias
         bpy.data.objects[str(selected_object_name)].select_set(True)
         bpy.context.view_layer.objects.active = bpy.data.objects[str(selected_object_name)]
-        bpy.ops.object.editmode_toggle()
+        bpy.ops.object.mode_set(mode='EDIT')
         scale_to_unit_sphere(bpy.data.objects[str(selected_object_name)])
-        bpy.ops.object.editmode_toggle()
+        bpy.ops.object.mode_set(mode='OBJECT')
         bpy.data.objects[str(selected_object_name)].modifiers.new(
             "Decimate", type="Decimate".upper())
         bpy.data.objects[str(selected_object_name)].modifiers.new(
@@ -158,7 +151,7 @@ def obj_render(path_to_obj_dir, args):
                 if cam_select_name != 'Camera':
                     output_name = '{0}_view{1}.png'.format(obj_basename, cam_select_name.split('.')[-1])
                 else:
-                    output_name = obj_basename[0] + ".png"
+                    output_name = obj_basename + ".png"
                 path_to_file2 = os.path.join(path_to_obj_dir, output_name)
                 bpy.data.scenes['Scene'].render.filepath = path_to_file2
 
@@ -173,7 +166,8 @@ def obj_render(path_to_obj_dir, args):
             bpy.ops.render.render(write_still=True)
 
         bpy.context.scene.camera = bpy.data.objects['Camera']
-        bpy.ops.object.delete()
+        if selected_object_name in bpy.data.objects:
+            bpy.data.objects.remove(bpy.data.objects[selected_object_name], do_unlink=True)
 
 
 if __name__ == '__main__':
